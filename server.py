@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, Response, jsonify
 import requests
 
 app = Flask(__name__)
@@ -30,6 +30,25 @@ def search():
         })
 
     return jsonify(results)
+
+
+@app.route("/audio")
+def audio():
+    url = request.args.get("url")
+
+    if not url:
+        return "Missing url", 400
+
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    r = requests.get(url, headers=headers, stream=True)
+
+    return Response(
+        r.iter_content(chunk_size=1024),
+        content_type="audio/mpeg"
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
