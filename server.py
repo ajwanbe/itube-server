@@ -1,57 +1,49 @@
-from flask import Flask, request
-import yt_dlp
+from flask import Flask, request, jsonify
+import requests
 
 app = Flask(__name__)
+
+API_KEY = "YOUR_JAMENDO_KEY"
 
 @app.route("/ping")
 def ping():
     return "OK"
 
+@app.route("/search")
+def search():
+    q = request.args.get("q")
+
+    url = f"https://api.jamendo.com/v3.0/tracks/?client_id={API_KEY}&format=json&limit=10&namesearch={q}"
+
+    r = requests.get(url)
+    data = r.json()
+
+    results = []
+
+    for t in data.get("results", []):
+        results.append({
+            "id": t["id"],
+            "title": t["name"],
+            "artist": t["artist_name"],
+            "audio": t["audio"],
+            "image": t["album_image"]
+        })
+
+    return jsonify(results)
+
 @app.route("/audio")
 def audio():
-    video_id = request.args.get("id")
+    track_id = request.args.get("id")
 
-    if not video_id:
-        return "Missing video id", 400
+    url = f"https://api.jamendo.com/v3.0/tracks/?client_id={API_KEY}&format=json&id={track_id}"
 
-    try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'noplaylist': True,
-            'nocheckcertificate': True,
-            'geo_bypass': True,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0'
-            }
-        }
+    r = requests.get(url)
+    data = r.json()
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(
-                f"https://www.youtube.com/watch?v={video_id}",
-                download=False
-            )
+    if data["results"]:
+        return data["results"][0]["audio"]
 
-        # أهم نقطة: اختيار أول audio مناسب
-        audio_url = None
-
-        if "formats" in info:
-            for f in info["formats"]:
-                if f.get("acodec") != "none" and f.get("url"):
-                    audio_url = f["url"]
-                    break
-
-        if not audio_url:
-            audio_url = info.get("url")
-
-        if not audio_url:
-            return "No audio found", 500
-
-        return audio_url
-
-    except Exception as e:
-        return f"ERROR: {str(e)}", 500
-
+    return "not found", 404
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
