@@ -3,7 +3,7 @@ import requests
 
 app = Flask(__name__)
 
-API_KEY = "YOUR_JAMENDO_KEY"
+API_KEY = "d715b0eb"
 
 @app.route("/ping")
 def ping():
@@ -44,6 +44,7 @@ def audio():
         return data["results"][0]["audio"]
 
     return "not found", 404
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
