@@ -1,25 +1,36 @@
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, Response
 import yt_dlp
+import requests
 
 app = Flask(__name__)
 
-@app.route('/audio')
-def get_audio():
-    video_id = request.args.get('id')
-    if not video_id:
-        return jsonify({'error': 'No video ID provided'}), 400
-    url = f'https://www.youtube.com/watch?v={video_id}'
-    ydl_opts = {'format': 'bestaudio[ext=m4a]/bestaudio/best', 'quiet': True, 'no_warnings': True}
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return redirect(info['url'])
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/ping')
+@app.route("/ping")
 def ping():
-    return 'OK'
+    return "OK"
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+@app.route("/audio")
+def audio():
+    video_id = request.args.get("id")
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'quiet': True
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(
+            f"https://www.youtube.com/watch?v={video_id}",
+            download=False
+        )
+
+    audio_url = info['url']
+
+    r = requests.get(audio_url, stream=True)
+
+    return Response(
+        r.iter_content(chunk_size=1024),
+        content_type=r.headers.get('Content-Type', 'audio/mpeg')
+    )
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
