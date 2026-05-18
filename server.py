@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 import yt_dlp
 
 app = Flask(__name__)
@@ -13,7 +13,7 @@ def get_audio():
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            return info['url']
+            return redirect(info['url'])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
