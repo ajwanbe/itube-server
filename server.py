@@ -1,6 +1,5 @@
-from flask import Flask, request, Response
+from flask import Flask, request
 import yt_dlp
-import requests
 
 app = Flask(__name__)
 
@@ -12,25 +11,31 @@ def ping():
 def audio():
     video_id = request.args.get("id")
 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'quiet': True
-    }
+    if not video_id:
+        return "Missing video id", 400
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(
-            f"https://www.youtube.com/watch?v={video_id}",
-            download=False
-        )
+    try:
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True
+        }
 
-    audio_url = info['url']
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(
+                f"https://www.youtube.com/watch?v={video_id}",
+                download=False
+            )
 
-    r = requests.get(audio_url, stream=True)
+        audio_url = info.get("url")
 
-    return Response(
-        r.iter_content(chunk_size=1024),
-        content_type=r.headers.get('Content-Type', 'audio/mpeg')
-    )
+        if not audio_url:
+            return "No audio url found", 500
+
+        return audio_url
+
+    except Exception as e:
+        return str(e), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
