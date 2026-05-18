@@ -1,5 +1,5 @@
-from flask import Flask, request, redirect
-import requests
+from flask import Flask, request
+import yt_dlp
 
 app = Flask(__name__)
 
@@ -15,27 +15,39 @@ def audio():
         return "Missing video id", 400
 
     try:
-        api_url = f"https://invidious.fdn.fr/api/v1/videos/{video_id}"
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': True,
+            'nocheckcertificate': True,
+            'geo_bypass': True,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0'
+            }
+        }
 
-        r = requests.get(api_url, timeout=10)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(
+                f"https://www.youtube.com/watch?v={video_id}",
+                download=False
+            )
 
-        if r.status_code != 200:
-            return "Failed to fetch video info", 500
+        # أهم نقطة: اختيار أول audio مناسب
+        audio_url = None
 
-        data = r.json()
+        if "formats" in info:
+            for f in info["formats"]:
+                if f.get("acodec") != "none" and f.get("url"):
+                    audio_url = f["url"]
+                    break
 
-        audio_formats = []
+        if not audio_url:
+            audio_url = info.get("url")
 
-        for f in data.get("adaptiveFormats", []):
-            if "audio" in f.get("type", ""):
-                audio_formats.append(f)
+        if not audio_url:
+            return "No audio found", 500
 
-        if not audio_formats:
-            return "No audio streams found", 500
-
-        audio_url = audio_formats[0]["url"]
-
-        return redirect(audio_url)
+        return audio_url
 
     except Exception as e:
         return f"ERROR: {str(e)}", 500
